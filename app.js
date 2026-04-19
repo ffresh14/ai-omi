@@ -5,7 +5,8 @@ const predictionPanel = document.getElementById("prediction-panel");
 const resizer = document.getElementById("panel-resizer");
 
 const IS_GITHUB_PAGES = window.location.hostname.endsWith("github.io");
-const STATIC_DATA_BASE = "./static-data";
+const APP_SCRIPT_BASE = new URL(".", document.currentScript?.src || window.location.href);
+const STATIC_DATA_BASE = new URL("static-data/", APP_SCRIPT_BASE);
 const API_BASE = window.ECG_API_BASE || (IS_GITHUB_PAGES ? "" : "http://127.0.0.1:8000");
 
 const previousTestsListEl = document.getElementById("previous-tests-list");
@@ -349,7 +350,8 @@ const fetchFromApiOrStatic = async ({ apiPath, staticPath, apiOptions }) => {
     }
   }
 
-  return fetchJson(`${STATIC_DATA_BASE}${staticPath}`);
+  const staticUrl = new URL(String(staticPath || "").replace(/^\//, ""), STATIC_DATA_BASE).toString();
+  return fetchJson(staticUrl);
 };
 
 const appendLeadTrace = (svgEl, samples, laneX, laneY, laneW, laneH, className) => {
@@ -719,6 +721,9 @@ const initializeDataUi = async () => {
     requestAnimationFrame(layoutTreeEdges);
   } catch (error) {
     console.error("Failed to initialize ECG tests", error);
+    if (previousTestsListEl) {
+      previousTestsListEl.innerHTML = '<div style="font-size:12px;color:#fca5a5;line-height:1.4;">Failed to load tests. Refresh the page.</div>';
+    }
   }
 };
 
