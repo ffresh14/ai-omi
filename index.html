@@ -75,10 +75,19 @@
 
           <section class="panel panel-prediction" id="prediction-panel" aria-label="Prediction results area">
             <div class="panel-content prediction-panel-content">
+              <div class="prediction-view-control" aria-label="Prediction view selector">
+                <label class="prediction-view-label" for="prediction-view-select">View</label>
+                <select id="prediction-view-select" class="prediction-view-select">
+                  <option value="tree">Tree</option>
+                  <option value="bars">Probability bars</option>
+                  <option value="summary">Decision summary</option>
+                </select>
+              </div>
               <div class="st-warning-node is-hidden" aria-label="ST elevation warning" aria-hidden="true">
                 <span class="warning-icon" aria-hidden="true">⚠</span>
                 <span class="warning-text">ST elevation detected</span>
               </div>
+              <div class="prediction-alt-view is-hidden" id="prediction-alt-view" aria-live="polite"></div>
               <div class="tree-root" id="tree-root" data-line-style="straight">
                 <svg class="tree-lines-svg" aria-hidden="true">
                   <path class="tree-edge" data-edge-key="outcomes-control" d=""></path>

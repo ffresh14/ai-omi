@@ -21,6 +21,8 @@ const ecgSpeedEl = document.getElementById("ecg-speed");
 const ecgGainEl = document.getElementById("ecg-gain");
 const ecgFilterEl = document.getElementById("ecg-filter");
 const ecgPaceToggleEl = document.getElementById("ecg-pace-toggle");
+const predictionViewSelectEl = document.getElementById("prediction-view-select");
+const predictionAltViewEl = document.getElementById("prediction-alt-view");
 
 const stWarningNodeEl = document.querySelector(".st-warning-node");
 
@@ -547,8 +549,140 @@ const loadEcgForRecord = async (recordId) => {
 
 let tests = [];
 let currentTest = null;
+let latestTreeOutcomes = null;
+
+const PREDICTION_VIEW_STORAGE_KEY = "prediction-view-mode";
+const PREDICTION_VIEW_MODES = new Set(["tree", "bars", "summary"]);
+let currentPredictionViewMode = "tree";
 
 const formatProbability = (value) => `${(Math.max(0, value) * 100).toFixed(1)}%`;
+
+const normalizeTreeOutcomes = (treeOutcomes) => ({
+  control: Number(treeOutcomes?.control ?? 0),
+  mi: Number(treeOutcomes?.mi ?? 0),
+  omi: Number(treeOutcomes?.omi ?? 0),
+  nomi: Number(treeOutcomes?.nomi ?? 0),
+  omi_lm_lad: Number(treeOutcomes?.omi_lm_lad ?? 0),
+  omi_lcx: Number(treeOutcomes?.omi_lcx ?? 0),
+  omi_rca: Number(treeOutcomes?.omi_rca ?? 0),
+});
+
+const renderBarsView = (o) => {
+  const barRow = (label, value, toneClass = "") => `
+    <div class="bar-row">
+      <span class="bar-key">${label}</span>
+      <div class="bar-track"><div class="bar-fill ${toneClass}" style="width:${Math.max(0, Math.min(100, value * 100)).toFixed(2)}%"></div></div>
+      <span class="bar-value">${formatProbability(value)}</span>
+    </div>
+  `;
+
+  return `
+    <div class="prediction-bars-shell">
+      <div class="prediction-section-title">Core probabilities</div>
+      <div class="bar-list">
+        ${barRow("Control", o.control, "is-control")}
+        ${barRow("MI", o.mi, "")}
+        ${barRow("OMI", o.omi, "is-omi")}
+        ${barRow("nOMI", o.nomi, "is-nomi")}
+      </div>
+      <div class="prediction-section-title">OMI territory probabilities</div>
+      <div class="bar-list">
+        ${barRow("OMI LM/LAD", o.omi_lm_lad, "is-omi")}
+        ${barRow("OMI LCX", o.omi_lcx, "is-omi")}
+        ${barRow("OMI RCA", o.omi_rca, "is-omi")}
+      </div>
+    </div>
+  `;
+};
+
+const renderSummaryView = (o) => {
+  const entries = [
+    { key: "control", label: "Control", value: o.control },
+    { key: "mi", label: "MI", value: o.mi },
+    { key: "omi", label: "OMI", value: o.omi },
+    { key: "nomi", label: "nOMI", value: o.nomi },
+    { key: "omi_lm_lad", label: "OMI LM/LAD", value: o.omi_lm_lad },
+    { key: "omi_lcx", label: "OMI LCX", value: o.omi_lcx },
+    { key: "omi_rca", label: "OMI RCA", value: o.omi_rca },
+  ].sort((a, b) => b.value - a.value);
+
+  const top = entries[0] || { label: "-", value: 0 };
+  const top3 = entries.slice(0, 3);
+
+  return `
+    <div class="summary-shell">
+      <div class="summary-headline">
+        <span class="lead">Model says likely</span>
+        <span class="main">${top.label} (${formatProbability(top.value)})</span>
+      </div>
+      <div class="summary-top3">
+        <div class="prediction-section-title">Top 3 outcomes</div>
+        ${top3
+      .map(
+        (item, idx) => `<div class="summary-item"><span class="k">${idx + 1}. ${item.label}</span><span class="v">${formatProbability(item.value)}</span></div>`
+      )
+      .join("")}
+      </div>
+    </div>
+  `;
+};
+
+const renderAlternatePredictionView = () => {
+  if (!predictionAltViewEl) return;
+
+  if (!latestTreeOutcomes) {
+    predictionAltViewEl.innerHTML = '<div class="summary-headline"><span class="lead">No prediction</span><span class="main">Select a test to load analysis</span></div>';
+    return;
+  }
+
+  const o = normalizeTreeOutcomes(latestTreeOutcomes);
+
+  switch (currentPredictionViewMode) {
+    case "bars":
+      predictionAltViewEl.innerHTML = renderBarsView(o);
+      break;
+    case "summary":
+      predictionAltViewEl.innerHTML = renderSummaryView(o);
+      break;
+    default:
+      predictionAltViewEl.innerHTML = "";
+      break;
+  }
+};
+
+const persistPredictionViewMode = (mode) => {
+  try {
+    window.localStorage.setItem(PREDICTION_VIEW_STORAGE_KEY, mode);
+  } catch {
+    // Ignore storage errors in restricted contexts.
+  }
+};
+
+const readPredictionViewMode = () => {
+  try {
+    const stored = window.localStorage.getItem(PREDICTION_VIEW_STORAGE_KEY);
+    return PREDICTION_VIEW_MODES.has(stored) ? stored : "tree";
+  } catch {
+    return "tree";
+  }
+};
+
+const setPredictionViewMode = (mode) => {
+  currentPredictionViewMode = PREDICTION_VIEW_MODES.has(mode) ? mode : "tree";
+  predictionViewSelectEl && (predictionViewSelectEl.value = currentPredictionViewMode);
+  persistPredictionViewMode(currentPredictionViewMode);
+
+  const showTree = currentPredictionViewMode === "tree";
+  treeRootEl?.classList.toggle("is-hidden", !showTree);
+  predictionAltViewEl?.classList.toggle("is-hidden", showTree);
+
+  if (showTree) {
+    requestAnimationFrame(layoutTreeEdges);
+    return;
+  }
+
+  renderAlternatePredictionView();
+};
 
 const isStemiCase = (label) => /(^|_)stemi(_|$)/i.test(String(label || ""));
 
@@ -562,9 +696,11 @@ const updateStElevationWarning = (rawOutcomes, selectedForClass = "") => {
 };
 
 const setTreeValues = (treeOutcomes) => {
+  latestTreeOutcomes = normalizeTreeOutcomes(treeOutcomes);
+
   for (const [key, el] of Object.entries(nodeValueEls)) {
     if (!el) continue;
-    const value = Number(treeOutcomes?.[key] ?? 0);
+    const value = Number(latestTreeOutcomes?.[key] ?? 0);
     el.textContent = formatProbability(value);
   }
 
@@ -574,7 +710,10 @@ const setTreeValues = (treeOutcomes) => {
   treeNodes.outcomes?.classList.add("active");
   treeBranches.outcomes?.classList.add("active");
 
-  if (!treeOutcomes) return;
+  if (!treeOutcomes) {
+    renderAlternatePredictionView();
+    return;
+  }
 
   const activatePath = (...keys) => {
     for (const k of keys) {
@@ -618,6 +757,8 @@ const setTreeValues = (treeOutcomes) => {
       activateEdge("mi_nomi");
     }
   }
+
+  renderAlternatePredictionView();
 };
 
 const setCurrentDetails = (test) => {
@@ -741,10 +882,15 @@ const syncEcgControlState = () => {
 ecgSpeedEl?.addEventListener("change", syncEcgControlState);
 ecgGainEl?.addEventListener("change", syncEcgControlState);
 ecgFilterEl?.addEventListener("change", syncEcgControlState);
+predictionViewSelectEl?.addEventListener("change", (event) => {
+  const mode = event?.target?.value;
+  setPredictionViewMode(mode);
+});
 ecgPaceToggleEl?.addEventListener("click", () => {
   ecgDisplaySettings.paceDetection = !ecgDisplaySettings.paceDetection;
   syncEcgControlState();
 });
+setPredictionViewMode(readPredictionViewMode());
 syncEcgControlState();
 
 initializeDataUi();
