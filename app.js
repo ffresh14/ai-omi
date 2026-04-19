@@ -4,7 +4,9 @@ const ecgPanel = document.getElementById("ecg-panel");
 const predictionPanel = document.getElementById("prediction-panel");
 const resizer = document.getElementById("panel-resizer");
 
-const API_BASE = window.ECG_API_BASE || "http://127.0.0.1:8000";
+const IS_GITHUB_PAGES = window.location.hostname.endsWith("github.io");
+const STATIC_DATA_BASE = "./static-data";
+const API_BASE = window.ECG_API_BASE || (IS_GITHUB_PAGES ? "" : "http://127.0.0.1:8000");
 
 const previousTestsListEl = document.getElementById("previous-tests-list");
 
@@ -330,6 +332,26 @@ const detectPaceSpikes = (samples, sampleRate) => {
   return spikes;
 };
 
+const fetchJson = async (url, options) => {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`Unable to fetch ${url} (${response.status})`);
+  }
+  return response.json();
+};
+
+const fetchFromApiOrStatic = async ({ apiPath, staticPath, apiOptions }) => {
+  if (API_BASE) {
+    try {
+      return await fetchJson(`${API_BASE}${apiPath}`, apiOptions);
+    } catch (error) {
+      console.warn(`API request failed for ${apiPath}, falling back to static data.`, error);
+    }
+  }
+
+  return fetchJson(`${STATIC_DATA_BASE}${staticPath}`);
+};
+
 const appendLeadTrace = (svgEl, samples, laneX, laneY, laneW, laneH, className) => {
   if (!samples || samples.length < 2) return;
 
@@ -490,11 +512,10 @@ const renderEcgCabrera = () => {
 };
 
 const fetchWaveforms = async (recordId) => {
-  const response = await fetch(`${API_BASE}/tests/${recordId}/waveforms`);
-  if (!response.ok) {
-    throw new Error(`Unable to fetch waveforms (${response.status})`);
-  }
-  return response.json();
+  return fetchFromApiOrStatic({
+    apiPath: `/tests/${recordId}/waveforms`,
+    staticPath: `/waveforms/${recordId}.json`,
+  });
 };
 
 const loadEcgForRecord = async (recordId) => {
@@ -649,11 +670,21 @@ const renderTestsList = (items) => {
 };
 
 const fetchTests = async () => {
-  const response = await fetch(`${API_BASE}/tests?limit=400`);
-  if (!response.ok) {
-    throw new Error(`Unable to fetch tests (${response.status})`);
-  }
-  return response.json();
+  return fetchFromApiOrStatic({
+    apiPath: "/tests?limit=400",
+    staticPath: "/tests.json",
+  });
+};
+
+const fetchPrediction = async (recordId) => {
+  return fetchFromApiOrStatic({
+    apiPath: `/tests/${recordId}/predict`,
+    staticPath: `/predict/${recordId}.json`,
+    apiOptions: {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    },
+  });
 };
 
 const analyzeCurrentTest = async () => {
@@ -661,16 +692,7 @@ const analyzeCurrentTest = async () => {
   const selectedRecordId = String(currentTest.record_id);
 
   try {
-    const response = await fetch(`${API_BASE}/tests/${selectedRecordId}/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Prediction failed (${response.status})`);
-    }
-
-    const payload = await response.json();
+    const payload = await fetchPrediction(selectedRecordId);
     if (payload.status !== "success") {
       throw new Error(payload.status || "Prediction status is not success");
     }
