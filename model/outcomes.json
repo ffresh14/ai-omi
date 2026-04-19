@@ -1,0 +1,4 @@
+{
+  "outcomes_bin": ["lbbb"],
+  "outcomes_cat": ["control_nomyoperi", "control_myoperi", "mi_nstemi_nonomi", "mi_stemi_nonomi", "mi_nstemi_omi_lmca_lad", "mi_nstemi_omi_lcx", "mi_nstemi_omi_rca", "mi_stemi_omi_lmca_lad", "mi_stemi_omi_lcx", "mi_stemi_omi_rca"]
+}

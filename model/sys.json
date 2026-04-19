@@ -1,0 +1,18 @@
+{
+    "model_path": null,
+    "hdf5": "/proj/sens2020005/omi/data/omi_analysis_data_20250217.hdf5",
+    "hdf5_dset_ecg": null,
+    "hdf5_dset_recordid": null,
+    "txt": "/proj/sens2020005/omi/data/omi_analysis_data_20250217.txt",
+    "split_col": "split",
+    "age_col": "age",
+    "male_col": "male",
+    "test": false,
+    "test_name": "test",
+    "out_dir": "/proj/sens2020005/omi/model_out/hp",
+    "cpu": false,
+    "gpu_index": 0,
+    "save_progress": false,
+    "outcomes_json": "/proj/sens2020005/omi/data/outcomes.json",
+    "no_metrics": false
+}

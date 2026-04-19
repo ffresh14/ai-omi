@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ECG App</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div class="app-viewport">
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="patient-meta">
+          <span class="meta-item">PID: <strong id="patient-pid">---</strong></span>
+          <span class="meta-item">NAMN: <strong id="patient-name">---</strong></span>
+          <span class="meta-item">KÖN: <strong id="patient-sex">---</strong></span>
+          <span class="meta-item">ÅLDER: <strong id="patient-age">---</strong></span>
+        </div>
+
+        <div class="ecg-toolbar" aria-label="ECG display controls">
+          <label class="ecg-control">
+            <span>Speed</span>
+            <select id="ecg-speed">
+              <option value="12.5">12.5 mm/s</option>
+              <option value="25" selected>25 mm/s</option>
+              <option value="50">50 mm/s</option>
+            </select>
+          </label>
+          <label class="ecg-control">
+            <span>Gain</span>
+            <select id="ecg-gain">
+              <option value="5">5 mm/mV</option>
+              <option value="10" selected>10 mm/mV</option>
+              <option value="20">20 mm/mV</option>
+            </select>
+          </label>
+          <label class="ecg-control">
+            <span>Filter</span>
+            <select id="ecg-filter">
+              <option value="40">40 Hz</option>
+              <option value="100" selected>100 Hz</option>
+              <option value="150">150 Hz</option>
+            </select>
+          </label>
+          <button type="button" class="ecg-pace-toggle" id="ecg-pace-toggle" aria-pressed="false">
+            Pace: Off
+          </button>
+        </div>
+
+        <div class="top-actions">
+          <span class="doctor-name">Anders, Andersson</span>
+          <div class="action-buttons">
+            <button type="button" class="action-btn action-btn-ghost">✎ Sign</button>
+            <button type="button" class="action-btn action-btn-primary">Print</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <main class="main-area" id="main-area">
+          <div class="top-row" id="top-row">
+            <section class="panel panel-ecg" id="ecg-panel" aria-label="ECG visualization area">
+              <div class="panel-content panel-grid ecg-top-content">
+                <svg class="ecg-cabrera-svg" id="ecg-cabrera-svg" aria-label="ECG Cabrera visualization"></svg>
+              </div>
+            </section>
+
+            <div class="panel-resizer" id="panel-resizer" role="separator" aria-label="Resize ECG and prediction panels"
+              aria-orientation="vertical" tabindex="0">
+              <span class="resizer-arrow" aria-hidden="true">↕</span>
+            </div>
+          </div>
+
+          <section class="panel panel-prediction" id="prediction-panel" aria-label="Prediction results area">
+            <div class="panel-content prediction-panel-content">
+              <div class="st-warning-node is-hidden" aria-label="ST elevation warning" aria-hidden="true">
+                <span class="warning-icon" aria-hidden="true">⚠</span>
+                <span class="warning-text">ST elevation detected</span>
+              </div>
+              <div class="tree-root" id="tree-root" data-line-style="straight">
+                <svg class="tree-lines-svg" aria-hidden="true">
+                  <path class="tree-edge" data-edge-key="outcomes-control" d=""></path>
+                  <path class="tree-edge" data-edge-key="outcomes-mi" d=""></path>
+                  <path class="tree-edge" data-edge-key="mi-split" d=""></path>
+                  <path class="tree-edge" data-edge-key="mi-omi" d=""></path>
+                  <path class="tree-edge" data-edge-key="mi-nomi" d=""></path>
+                  <path class="tree-edge" data-edge-key="omi-omi_lm_lad" d=""></path>
+                  <path class="tree-edge" data-edge-key="omi-omi_lcx" d=""></path>
+                  <path class="tree-edge" data-edge-key="omi-omi_rca" d=""></path>
+                </svg>
+                <div class="tree-branch has-children" data-branch="outcomes">
+                  <div class="tree-node root" data-outcome-key="outcomes">
+                    <span class="node-title">Outcomes</span>
+                  </div>
+                  <div class="tree-children">
+                    <div class="tree-branch" data-branch="control">
+                      <div class="tree-node level-1 control" data-outcome-key="control">
+                        <span class="node-title">CONTROL</span>
+                        <span class="node-value" id="node-control">-</span>
+                      </div>
+                    </div>
+                    <div class="tree-branch has-children" data-branch="mi">
+                      <div class="tree-node level-1 mi" data-outcome-key="mi">
+                        <span class="node-title">MI</span>
+                        <span class="node-value" id="node-mi">-</span>
+                      </div>
+                      <div class="tree-children">
+                        <div class="tree-branch has-children" data-branch="omi">
+                          <div class="tree-node level-2 omi" data-outcome-key="omi">
+                            <span class="node-title">OMI</span>
+                            <span class="node-value" id="node-omi">-</span>
+                          </div>
+                          <div class="tree-children">
+                            <div class="tree-branch" data-branch="omi_lm_lad">
+                              <div class="tree-node level-3 omi-lm-lad" data-outcome-key="omi_lm_lad">
+                                <span class="node-title">OMI LM/LAD</span>
+                                <span class="node-value" id="node-omi-lm-lad">-</span>
+                              </div>
+                            </div>
+                            <div class="tree-branch" data-branch="omi_lcx">
+                              <div class="tree-node level-3 omi-lcx" data-outcome-key="omi_lcx">
+                                <span class="node-title">OMI LCX</span>
+                                <span class="node-value" id="node-omi-lcx">-</span>
+                              </div>
+                            </div>
+                            <div class="tree-branch" data-branch="omi_rca">
+                              <div class="tree-node level-3 omi-rca" data-outcome-key="omi_rca">
+                                <span class="node-title">OMI RCA</span>
+                                <span class="node-value" id="node-omi-rca">-</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="tree-branch" data-branch="nomi">
+                          <div class="tree-node level-2 nomi" data-outcome-key="nomi">
+                            <span class="node-title">nOMI</span>
+                            <span class="node-value" id="node-nomi">-</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <aside class="right-bar" aria-label="Right sidebar">
+          <section class="sidebar-block previous-tests-block">
+            <h3>Previous ECG tests</h3>
+            <div class="tests-list" id="previous-tests-list"></div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+
+</html>
