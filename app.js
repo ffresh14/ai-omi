@@ -785,6 +785,12 @@ const setActiveTestButton = () => {
   });
 };
 
+const formatTestClassForList = (value) => {
+  const label = String(value || "").trim();
+  if (!label) return "Unlabeled";
+  return label.replace(/nstemi/gi, "0").replace(/stemi/gi, "1");
+};
+
 const renderTestsList = (items) => {
   if (!previousTestsListEl) return;
   previousTestsListEl.innerHTML = "";
@@ -795,7 +801,7 @@ const renderTestsList = (items) => {
     button.className = "test-item";
     button.dataset.recordId = test.record_id;
     button.draggable = true;
-    button.innerHTML = `<strong>ID ${test.record_id}</strong><span>${test.selected_for_class || "Unlabeled"}</span>`;
+    button.innerHTML = `<strong>ID ${test.record_id}</strong><span>${formatTestClassForList(test.selected_for_class)}</span>`;
     button.addEventListener("click", () => selectTest(test));
     button.addEventListener("dragstart", (event) => {
       event.dataTransfer?.setData("text/plain", test.record_id);
